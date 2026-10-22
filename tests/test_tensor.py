@@ -128,3 +128,63 @@ def test_addition_broadcasts_scalar():
     result.sum().backward()
 
     np.testing.assert_array_equal(x.grad, [1.0, 1.0, 1.0])
+
+
+
+
+def test_multiplication_forward_and_backward():
+    x = Tensor([2.0, 3.0], requires_grad=True)
+    y = Tensor([4.0, 5.0], requires_grad=True)
+
+    result = x * y
+
+    np.testing.assert_array_equal(result.data, [8.0, 15.0])
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, [4.0, 5.0])
+    np.testing.assert_array_equal(y.grad, [2.0, 3.0])
+
+
+def test_multiplication_with_constant():
+    x = Tensor([2.0, 3.0], requires_grad=True)
+
+    result = x * 4.0
+
+    np.testing.assert_array_equal(result.data, [8.0, 12.0])
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, [4.0, 4.0])
+
+
+def test_multiplication_accumulates_gradient_when_input_is_reused():
+    x = Tensor([2.0, 3.0], requires_grad=True)
+
+    result = x * x
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, [4.0, 6.0])
+
+
+def test_multiplication_broadcasts_and_reduces_gradients():
+    x = Tensor(
+        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+        requires_grad=True,
+    )
+    scale = Tensor([10.0, 20.0], requires_grad=True)
+
+    result = x * scale
+
+    np.testing.assert_array_equal(
+        result.data,
+        [[10.0, 40.0], [30.0, 80.0], [50.0, 120.0]],
+    )
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(
+        x.grad,
+        [[10.0, 20.0], [10.0, 20.0], [10.0, 20.0]],
+    )
+    np.testing.assert_array_equal(scale.grad, [9.0, 12.0])

@@ -74,6 +74,39 @@ class Tensor:
 
     __radd__ = __add__
 
+    
+    def __mul__(self, other):
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        result_data = self.data * other.data
+        needs_grad = self.requires_grad or other.requires_grad
+
+        result = Tensor(
+            result_data,
+            requires_grad=needs_grad,
+            _parents=(self, other),
+        )
+
+        def backward():
+            if self.requires_grad:
+                self.grad += _unbroadcast(
+                    other.data * result.grad,
+                    self.data.shape,
+                )
+
+            if other.requires_grad:
+                other.grad += _unbroadcast(
+                    self.data * result.grad,
+                    other.data.shape,
+                )
+
+        result._backward = backward
+        return result
+
+    __rmul__ = __mul__
+
+
     def sum(self):
         """Sum all elements and propagate gradients to each element."""
         result = Tensor(
