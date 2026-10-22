@@ -33,3 +33,37 @@ def test_zero_grad_resets_gradients():
     tensor.zero_grad()
 
     np.testing.assert_array_equal(tensor.grad, [0, 0])
+
+
+
+def test_addition_forward_and_backward():
+    x = Tensor(2.0, requires_grad=True)
+    y = Tensor(3.0, requires_grad=True)
+
+    z = x + y
+
+    assert z.data.item() == 5.0
+
+    z.backward()
+
+    assert x.grad.item() == 1.0
+    assert y.grad.item() == 1.0
+
+
+def test_addition_accumulates_gradient_when_input_is_reused():
+    x = Tensor(4.0, requires_grad=True)
+
+    z = x + x
+    z.backward()
+
+    assert x.grad.item() == 2.0
+
+
+def test_addition_with_constant():
+    x = Tensor(2.0, requires_grad=True)
+
+    z = x + 5.0
+    z.backward()
+
+    assert z.data.item() == 7.0
+    assert x.grad.item() == 1.0
