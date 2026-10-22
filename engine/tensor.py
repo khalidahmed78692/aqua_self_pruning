@@ -106,6 +106,27 @@ class Tensor:
 
     __rmul__ = __mul__
 
+    
+    def relu(self):
+        """Apply ReLU activation and propagate its gradient."""
+        result_data = np.maximum(0.0, self.data)
+
+        result = Tensor(
+            result_data,
+            requires_grad=self.requires_grad,
+            _parents=(self,),
+        )
+
+        def backward():
+            if self.requires_grad:
+                self.grad += (
+                    (self.data > 0).astype(np.float64) * result.grad
+                )
+
+        result._backward = backward
+        return result
+
+
 
     def sum(self):
         """Sum all elements and propagate gradients to each element."""
