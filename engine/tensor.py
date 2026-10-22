@@ -2,6 +2,22 @@
 import numpy as np
 
 
+def _unbroadcast(grad, original_shape):
+    """Reduce a broadcasted gradient to the input's original shape."""
+    grad = np.asarray(grad, dtype=np.float64)
+
+    # Remove leading dimensions introduced by broadcasting.
+    while grad.ndim > len(original_shape):
+        grad = grad.sum(axis=0)
+
+    # Sum dimensions where the original input had size 1.
+    for axis, size in enumerate(original_shape):
+        if size == 1 and grad.shape[axis] != 1:
+            grad = grad.sum(axis=axis, keepdims=True)
+
+    return grad.reshape(original_shape)
+
+
 class Tensor:
     """A numerical array that can optionally track gradients."""
 
@@ -48,15 +64,30 @@ class Tensor:
 
         def backward():
             if self.requires_grad:
-                self.grad += result.grad
+                self.grad += _unbroadcast(result.grad, self.data.shape)
 
             if other.requires_grad:
-                other.grad += result.grad
+                other.grad += _unbroadcast(result.grad, other.data.shape)
 
         result._backward = backward
         return result
 
     __radd__ = __add__
+
+    def sum(self):
+        """Sum all elements and propagate gradients to each element."""
+        result = Tensor(
+            self.data.sum(),
+            requires_grad=self.requires_grad,
+            _parents=(self,),
+        )
+
+        def backward():
+            if self.requires_grad:
+                self.grad += np.ones_like(self.data) * result.grad
+
+        result._backward = backward
+        return result
 
     def backward(self):
         """Backpropagate gradients from a scalar result."""

@@ -2,6 +2,7 @@
 import numpy as np
 
 from engine.tensor import Tensor
+from engine.tensor import _unbroadcast
 
 
 def test_tensor_stores_data_as_numpy_array():
@@ -67,3 +68,63 @@ def test_addition_with_constant():
 
     assert z.data.item() == 7.0
     assert x.grad.item() == 1.0
+
+
+
+def test_unbroadcast_reduces_leading_batch_dimension():
+    grad = np.ones((3, 2))
+
+    result = _unbroadcast(grad, (2,))
+
+    np.testing.assert_array_equal(result, [3, 3])
+
+
+def test_unbroadcast_preserves_singleton_dimension():
+    grad = np.ones((3, 2))
+
+    result = _unbroadcast(grad, (1, 2))
+
+    assert result.shape == (1, 2)
+    np.testing.assert_array_equal(result, [[3, 3]])
+
+
+def test_unbroadcast_keeps_matching_shape():
+    grad = np.array([[1.0, 2.0], [3.0, 4.0]])
+
+    result = _unbroadcast(grad, (2, 2))
+
+    np.testing.assert_array_equal(result, grad)
+
+
+
+
+def test_addition_broadcasts_vector_and_reduces_its_gradient():
+    x = Tensor(
+        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+        requires_grad=True,
+    )
+    bias = Tensor([10.0, 20.0], requires_grad=True)
+
+    result = x + bias
+
+    np.testing.assert_array_equal(
+        result.data,
+        [[11.0, 22.0], [13.0, 24.0], [15.0, 26.0]],
+    )
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, np.ones((3, 2)))
+    np.testing.assert_array_equal(bias.grad, [3.0, 3.0])
+
+
+def test_addition_broadcasts_scalar():
+    x = Tensor([1.0, 2.0, 3.0], requires_grad=True)
+
+    result = x + 5.0
+
+    np.testing.assert_array_equal(result.data, [6.0, 7.0, 8.0])
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, [1.0, 1.0, 1.0])
