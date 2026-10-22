@@ -1,0 +1,18 @@
+
+# Python environments
+.venv/
+venv/
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Test and tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated experiment outputs
+# Uncomment if results/ should remain local:
+# results/
