@@ -217,3 +217,49 @@ def test_relu_with_all_negative_values():
 
     np.testing.assert_array_equal(result.data, [0.0, 0.0, 0.0])
     np.testing.assert_array_equal(x.grad, [0.0, 0.0, 0.0])
+
+
+
+def test_matmul_forward():
+    x = Tensor([[1.0, 2.0], [3.0, 4.0]], requires_grad=True)
+    weights = Tensor([[5.0, 6.0], [7.0, 8.0]], requires_grad=True)
+
+    result = x @ weights
+
+    np.testing.assert_array_equal(
+        result.data,
+        [[19.0, 22.0], [43.0, 50.0]],
+    )
+
+
+def test_matmul_backward():
+    x = Tensor([[1.0, 2.0], [3.0, 4.0]], requires_grad=True)
+    weights = Tensor([[5.0, 6.0], [7.0, 8.0]], requires_grad=True)
+
+    result = (x @ weights).sum()
+    result.backward()
+
+    np.testing.assert_array_equal(x.grad, [[11.0, 15.0], [11.0, 15.0]])
+    np.testing.assert_array_equal(weights.grad, [[4.0, 4.0], [6.0, 6.0]])
+
+
+def test_matmul_with_constant_matrix():
+    x = Tensor([[1.0, 2.0]], requires_grad=True)
+    weights = Tensor([[3.0], [4.0]])
+
+    result = x @ weights
+
+    np.testing.assert_array_equal(result.data, [[11.0]])
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, [[3.0, 4.0]])
+    assert weights.grad is None
+
+
+def test_matmul_rejects_incompatible_shapes():
+    x = Tensor([[1.0, 2.0]], requires_grad=True)
+    weights = Tensor([[1.0, 2.0]], requires_grad=True)
+
+    with np.testing.assert_raises(ValueError):
+        _ = x @ weights

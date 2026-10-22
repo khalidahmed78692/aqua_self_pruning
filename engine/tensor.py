@@ -106,6 +106,36 @@ class Tensor:
 
     __rmul__ = __mul__
 
+
+    
+    def __matmul__(self, other):
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        result_data = self.data @ other.data
+        needs_grad = self.requires_grad or other.requires_grad
+
+        result = Tensor(
+            result_data,
+            requires_grad=needs_grad,
+            _parents=(self, other),
+        )
+
+        def backward():
+            if self.requires_grad:
+                self.grad += result.grad @ np.swapaxes(
+                    other.data, -1, -2
+                )
+
+            if other.requires_grad:
+                other.grad += np.swapaxes(
+                    self.data, -1, -2
+                ) @ result.grad
+
+        result._backward = backward
+        return result
+
+
     
     def relu(self):
         """Apply ReLU activation and propagate its gradient."""
