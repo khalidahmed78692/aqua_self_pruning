@@ -263,3 +263,57 @@ def test_matmul_rejects_incompatible_shapes():
 
     with np.testing.assert_raises(ValueError):
         _ = x @ weights
+
+
+
+
+def test_subtraction_forward_and_backward():
+    x = Tensor([1.0, 2.0], requires_grad=True)
+    y = Tensor([3.0, 5.0], requires_grad=True)
+
+    result = (x - y).sum()
+    np.testing.assert_array_equal((x - y).data, [-2.0, -3.0])
+
+    result.backward()
+
+    np.testing.assert_array_equal(x.grad, [1.0, 1.0])
+    np.testing.assert_array_equal(y.grad, [-1.0, -1.0])
+
+
+def test_subtraction_with_constant():
+    x = Tensor([4.0, 7.0], requires_grad=True)
+
+    result = x - 2.0
+    np.testing.assert_array_equal(result.data, [2.0, 5.0])
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, [1.0, 1.0])
+
+
+def test_subtraction_broadcasts_and_reduces_gradients():
+    x = Tensor(
+        [[1.0, 2.0], [3.0, 4.0]],
+        requires_grad=True,
+    )
+    y = Tensor([10.0, 20.0], requires_grad=True)
+
+    result = (x - y).sum()
+    result.backward()
+
+    np.testing.assert_array_equal(
+        x.grad,
+        [[1.0, 1.0], [1.0, 1.0]],
+    )
+    np.testing.assert_array_equal(y.grad, [-2.0, -2.0])
+
+
+def test_reverse_subtraction():
+    x = Tensor([1.0, 2.0], requires_grad=True)
+
+    result = 10.0 - x
+    np.testing.assert_array_equal(result.data, [9.0, 8.0])
+
+    result.sum().backward()
+
+    np.testing.assert_array_equal(x.grad, [-1.0, -1.0])
