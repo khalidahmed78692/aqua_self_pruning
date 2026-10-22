@@ -146,6 +146,45 @@ class Tensor:
 
 
     
+    def __truediv__(self, other):
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        result_data = self.data / other.data
+        needs_grad = self.requires_grad or other.requires_grad
+
+        result = Tensor(
+            result_data,
+            requires_grad=needs_grad,
+            _parents=(self, other),
+        )
+
+        def backward():
+            if self.requires_grad:
+                self.grad += _unbroadcast(
+                    result.grad / other.data,
+                    self.data.shape,
+                )
+
+            if other.requires_grad:
+                other.grad += _unbroadcast(
+                    -result.grad * self.data / (other.data ** 2),
+                    other.data.shape,
+                )
+
+        result._backward = backward
+        return result
+
+    def __rtruediv__(self, other):
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        return other.__truediv__(self)
+
+
+
+
+    
     def __matmul__(self, other):
         if not isinstance(other, Tensor):
             other = Tensor(other)

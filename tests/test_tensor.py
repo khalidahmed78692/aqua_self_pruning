@@ -317,3 +317,55 @@ def test_reverse_subtraction():
     result.sum().backward()
 
     np.testing.assert_array_equal(x.grad, [-1.0, -1.0])
+
+
+
+
+
+def test_division_forward_and_backward():
+    x = Tensor([6.0, 12.0], requires_grad=True)
+    y = Tensor([2.0, 4.0], requires_grad=True)
+
+    result = (x / y).sum()
+    np.testing.assert_allclose((x / y).data, [3.0, 3.0])
+
+    result.backward()
+
+    np.testing.assert_allclose(x.grad, [0.5, 0.25])
+    np.testing.assert_allclose(y.grad, [-1.5, -0.75])
+
+
+def test_division_with_constant():
+    x = Tensor([6.0, 12.0], requires_grad=True)
+
+    result = x / 2.0
+    np.testing.assert_allclose(result.data, [3.0, 6.0])
+
+    result.sum().backward()
+
+    np.testing.assert_allclose(x.grad, [0.5, 0.5])
+
+
+def test_division_broadcasts_and_reduces_gradients():
+    x = Tensor([[4.0, 8.0], [6.0, 12.0]], requires_grad=True)
+    y = Tensor([2.0, 4.0], requires_grad=True)
+
+    result = (x / y).sum()
+    result.backward()
+
+    np.testing.assert_allclose(
+        x.grad,
+        [[0.5, 0.25], [0.5, 0.25]],
+    )
+    np.testing.assert_allclose(y.grad, [-2.5, -1.25])
+
+
+def test_reverse_division():
+    x = Tensor([2.0, 4.0], requires_grad=True)
+
+    result = 8.0 / x
+    np.testing.assert_allclose(result.data, [4.0, 2.0])
+
+    result.sum().backward()
+
+    np.testing.assert_allclose(x.grad, [-2.0, -0.5])
