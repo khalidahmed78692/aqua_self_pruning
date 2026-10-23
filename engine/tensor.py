@@ -1,4 +1,3 @@
-
 import numpy as np
 
 
@@ -64,17 +63,22 @@ class Tensor:
 
         def backward():
             if self.requires_grad:
-                self.grad += _unbroadcast(result.grad, self.data.shape)
+                self.grad += _unbroadcast(
+                    result.grad,
+                    self.data.shape,
+                )
 
             if other.requires_grad:
-                other.grad += _unbroadcast(result.grad, other.data.shape)
+                other.grad += _unbroadcast(
+                    result.grad,
+                    other.data.shape,
+                )
 
         result._backward = backward
         return result
 
     __radd__ = __add__
 
-    
     def __mul__(self, other):
         if not isinstance(other, Tensor):
             other = Tensor(other)
@@ -106,8 +110,6 @@ class Tensor:
 
     __rmul__ = __mul__
 
-
-    
     def __sub__(self, other):
         if not isinstance(other, Tensor):
             other = Tensor(other)
@@ -143,9 +145,6 @@ class Tensor:
 
         return other.__sub__(self)
 
-
-
-    
     def __truediv__(self, other):
         if not isinstance(other, Tensor):
             other = Tensor(other)
@@ -181,10 +180,6 @@ class Tensor:
 
         return other.__truediv__(self)
 
-
-
-
-    
     def __pow__(self, other):
         if not isinstance(other, Tensor):
             other = Tensor(other)
@@ -230,9 +225,6 @@ class Tensor:
 
         return other.__pow__(self)
 
-
-
-    
     def __matmul__(self, other):
         if not isinstance(other, Tensor):
             other = Tensor(other)
@@ -249,19 +241,21 @@ class Tensor:
         def backward():
             if self.requires_grad:
                 self.grad += result.grad @ np.swapaxes(
-                    other.data, -1, -2
+                    other.data,
+                    -1,
+                    -2,
                 )
 
             if other.requires_grad:
                 other.grad += np.swapaxes(
-                    self.data, -1, -2
+                    self.data,
+                    -1,
+                    -2,
                 ) @ result.grad
 
         result._backward = backward
         return result
 
-
-    
     def relu(self):
         """Apply ReLU activation and propagate its gradient."""
         result_data = np.maximum(0.0, self.data)
@@ -281,8 +275,6 @@ class Tensor:
         result._backward = backward
         return result
 
-
-
     def sum(self):
         """Sum all elements and propagate gradients to each element."""
         result = Tensor(
@@ -297,6 +289,10 @@ class Tensor:
 
         result._backward = backward
         return result
+
+    def mean(self):
+        """Return the mean of all elements with gradient tracking."""
+        return self.sum() / self.data.size
 
     def backward(self):
         """Backpropagate gradients from a scalar result."""

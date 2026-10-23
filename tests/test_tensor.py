@@ -430,3 +430,33 @@ def test_reverse_power():
         exponent.grad,
         [4.0 * np.log(2.0), 8.0 * np.log(2.0)],
     )
+
+
+
+
+
+def test_mean_forward():
+    x = Tensor([1.0, 2.0, 3.0], requires_grad=True)
+
+    result = x.mean()
+
+    np.testing.assert_allclose(result.data, 2.0)
+
+
+def test_mean_backward():
+    x = Tensor([1.0, 2.0, 3.0], requires_grad=True)
+
+    x.mean().backward()
+
+    np.testing.assert_allclose(x.grad, [1.0 / 3.0] * 3)
+
+
+def test_mean_backward_for_matrix():
+    x = Tensor([[1.0, 2.0], [3.0, 4.0]], requires_grad=True)
+
+    x.mean().backward()
+
+    np.testing.assert_allclose(
+        x.grad,
+        [[0.25, 0.25], [0.25, 0.25]],
+    )
