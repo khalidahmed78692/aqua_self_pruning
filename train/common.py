@@ -88,22 +88,28 @@ def train(
 
                 scores = None
 
+
                 if method == "saliency":
-                    # Compute gradients over the full training set
+                    # Average Taylor scores over training minibatches
                     # at the current model parameters.
+                    saliency.reset()
+
+                    for start in range(0, len(y), batch_size):
+                        xb = X[start:start + batch_size]
+                        yb = y[start:start + batch_size]
+
+                        opt.zero_grad()
+
+                        saliency_loss = softmax_cross_entropy(
+                            model(Tensor(xb)),
+                            yb,
+                        )
+                        saliency_loss.backward()
+                        saliency.update()
+
+                    scores = saliency.scores()
                     opt.zero_grad()
 
-                    saliency_loss = softmax_cross_entropy(
-                        model(Tensor(X)),
-                        y,
-                    )
-                    saliency_loss.backward()
-
-                    # Start a fresh accumulation window for this
-                    # pruning event and capture the current scores.
-                    saliency.reset()
-                    saliency.update()
-                    scores = saliency.scores()
 
                 prune_to_sparsity(
                     model,
