@@ -185,6 +185,54 @@ class Tensor:
 
 
     
+    def __pow__(self, other):
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        result_data = self.data ** other.data
+        needs_grad = self.requires_grad or other.requires_grad
+
+        result = Tensor(
+            result_data,
+            requires_grad=needs_grad,
+            _parents=(self, other),
+        )
+
+        def backward():
+            if self.requires_grad:
+                base_grad = (
+                    other.data
+                    * (self.data ** (other.data - 1))
+                    * result.grad
+                )
+                self.grad += _unbroadcast(
+                    base_grad,
+                    self.data.shape,
+                )
+
+            if other.requires_grad:
+                exponent_grad = (
+                    result.data
+                    * np.log(self.data)
+                    * result.grad
+                )
+                other.grad += _unbroadcast(
+                    exponent_grad,
+                    other.data.shape,
+                )
+
+        result._backward = backward
+        return result
+
+    def __rpow__(self, other):
+        if not isinstance(other, Tensor):
+            other = Tensor(other)
+
+        return other.__pow__(self)
+
+
+
+    
     def __matmul__(self, other):
         if not isinstance(other, Tensor):
             other = Tensor(other)

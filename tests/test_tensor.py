@@ -369,3 +369,64 @@ def test_reverse_division():
     result.sum().backward()
 
     np.testing.assert_allclose(x.grad, [-2.0, -0.5])
+
+
+
+
+def test_power_with_constant_exponent():
+    x = Tensor([2.0, 3.0], requires_grad=True)
+
+    result = x ** 2.0
+    np.testing.assert_allclose(result.data, [4.0, 9.0])
+
+    result.sum().backward()
+
+    np.testing.assert_allclose(x.grad, [4.0, 6.0])
+
+
+def test_power_with_tensor_exponent():
+    x = Tensor([2.0, 3.0], requires_grad=True)
+    exponent = Tensor(2.0, requires_grad=True)
+
+    result = (x ** exponent).sum()
+    result.backward()
+
+    np.testing.assert_allclose(x.grad, [4.0, 6.0])
+    np.testing.assert_allclose(
+        exponent.grad,
+        4.0 * np.log(2.0) + 9.0 * np.log(3.0),
+    )
+
+
+def test_power_broadcasts_and_reduces_gradients():
+    x = Tensor([[2.0, 3.0], [4.0, 5.0]], requires_grad=True)
+    exponent = Tensor([2.0, 2.0], requires_grad=True)
+
+    result = (x ** exponent).sum()
+    result.backward()
+
+    np.testing.assert_allclose(
+        x.grad,
+        [[4.0, 6.0], [8.0, 10.0]],
+    )
+    np.testing.assert_allclose(
+        exponent.grad,
+        [
+            4.0 * np.log(2.0) + 16.0 * np.log(4.0),
+            9.0 * np.log(3.0) + 25.0 * np.log(5.0),
+        ],
+    )
+
+
+def test_reverse_power():
+    exponent = Tensor([2.0, 3.0], requires_grad=True)
+
+    result = 2.0 ** exponent
+    np.testing.assert_allclose(result.data, [4.0, 8.0])
+
+    result.sum().backward()
+
+    np.testing.assert_allclose(
+        exponent.grad,
+        [4.0 * np.log(2.0), 8.0 * np.log(2.0)],
+    )
