@@ -275,6 +275,53 @@ class Tensor:
         result._backward = backward
         return result
 
+    def tanh(self):
+        """Apply tanh activation and propagate its gradient."""
+        result_data = np.tanh(self.data)
+
+        result = Tensor(
+            result_data,
+            requires_grad=self.requires_grad,
+            _parents=(self,),
+        )
+
+        def backward():
+            if self.requires_grad:
+                self.grad += (1.0 - result.data ** 2) * result.grad
+
+        result._backward = backward
+        return result
+
+    def sigmoid(self):
+        """Apply numerically stable sigmoid and propagate its gradient."""
+        result_data = np.empty_like(self.data)
+
+        # Separate positive and negative inputs to avoid exponential overflow.
+        positive = self.data >= 0
+        negative = ~positive
+
+        result_data[positive] = 1.0 / (
+            1.0 + np.exp(-self.data[positive])
+        )
+
+        exp_x = np.exp(self.data[negative])
+        result_data[negative] = exp_x / (1.0 + exp_x)
+
+        result = Tensor(
+            result_data,
+            requires_grad=self.requires_grad,
+            _parents=(self,),
+        )
+
+        def backward():
+            if self.requires_grad:
+                self.grad += (
+                    result.data * (1.0 - result.data) * result.grad
+                )
+
+        result._backward = backward
+        return result
+
     def sum(self):
         """Sum all elements and propagate gradients to each element."""
         result = Tensor(
@@ -336,3 +383,89 @@ class Tensor:
             f"Tensor(data={self.data!r}, "
             f"requires_grad={self.requires_grad})"
         )
+
+
+
+
+def softmax_cross_entropy(logits, targets):
+    """Compute mean softmax cross-entropy for a batch of class logits.
+
+    Args:
+        logits: Tensor with shape (batch_size, num_classes).
+        targets: Integer class indices with shape (batch_size,), or
+            one-hot/soft labels with shape (batch_size, num_classes).
+
+    Returns:
+        A scalar Tensor connected to logits for backpropagation.
+    """
+    if not isinstance(logits, Tensor):
+        logits = Tensor(logits)
+
+    if logits.data.ndim != 2:
+        raise ValueError("logits must have shape (batch_size, num_classes)")
+
+    batch_size, num_classes = logits.data.shape
+
+    if batch_size == 0 or num_classes == 0:
+        raise ValueError("logits must not have empty dimensions")
+
+    targets = np.asarray(targets)
+
+    if targets.ndim == 1:
+        if targets.shape[0] != batch_size:
+            raise ValueError("Number of targets must match batch size")
+
+        if not np.issubdtype(targets.dtype, np.integer):
+            raise ValueError("Class-index targets must be integers")
+
+        if np.any(targets < 0) or np.any(targets >= num_classes):
+            raise ValueError("Target class index is out of range")
+
+        target_matrix = np.zeros_like(logits.data)
+        target_matrix[np.arange(batch_size), targets.astype(int)] = 1.0
+
+    elif targets.shape == (batch_size, num_classes):
+        target_matrix = targets.astype(np.float64)
+
+        if not np.all(np.isfinite(target_matrix)):
+            raise ValueError("Targets must contain finite values")
+
+        if np.any(target_matrix < 0):
+            raise ValueError("Targets must be non-negative")
+
+        if not np.allclose(target_matrix.sum(axis=1), 1.0):
+            raise ValueError("Each target row must sum to 1")
+
+    else:
+        raise ValueError(
+            "targets must have shape (batch_size,) or "
+            "(batch_size, num_classes)"
+        )
+
+    # Stable softmax: subtract the maximum logit in each row.
+    shifted = logits.data - np.max(logits.data, axis=1, keepdims=True)
+    exp_logits = np.exp(shifted)
+    probabilities = exp_logits / exp_logits.sum(axis=1, keepdims=True)
+
+    # Compute log-softmax directly for numerical stability.
+    log_normalizer = np.log(exp_logits.sum(axis=1, keepdims=True))
+    log_probabilities = shifted - log_normalizer
+
+    loss_value = -np.sum(target_matrix * log_probabilities) / batch_size
+
+    result = Tensor(
+        loss_value,
+        requires_grad=logits.requires_grad,
+        _parents=(logits,),
+    )
+
+    def backward():
+        if logits.requires_grad:
+            logits.grad += (
+                (probabilities - target_matrix)
+                / batch_size
+                * result.grad
+            )
+
+    result._backward = backward
+    return result
